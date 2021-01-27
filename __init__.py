@@ -489,12 +489,12 @@ async def add_girl(bot, ev: CQEvent):
         cidlist = duel._get_cards(gid,uid)
         cidnum = len(cidlist)
         if cidnum >= girlnum:
-            msg:'您的女友已经满了哦，快点发送[升级贵族]进行升级吧。'
+            msg = '您的女友已经满了哦，快点发送[升级贵族]进行升级吧。'
             await bot.send(ev, msg, at_sender=True)
             return
         score = score_counter._get_score(gid, uid)
         if score<300:
-            msg:'您的金币不足300哦。'
+            msg = '您的金币不足300哦。'
             await bot.send(ev, msg, at_sender=True)
             return
         score_counter._reduce_score(gid, uid ,300)
@@ -525,7 +525,7 @@ async def add_girl(bot, ev: CQEvent):
     cidlist = duel._get_cards(gid,uid)
     cidnum = len(cidlist)  
     if level ==6:
-       msg:f'您已经是最高爵位{noblename}了，不能再升级了。'
+       msg = f'您已经是最高爵位{noblename}了，不能再升级了。'
        await bot.send(ev, msg, at_sender=True)
        return     
     
@@ -537,7 +537,7 @@ async def add_girl(bot, ev: CQEvent):
         await bot.send(ev, msg, at_sender=True)
         return
     if  score<100:
-        msg:'您的金币不足100哦。'
+        msg = '您的金币不足100哦。'
         await bot.send(ev, msg, at_sender=True)
         return    
     score_counter._reduce_score(gid, uid ,100)
