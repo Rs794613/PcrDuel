@@ -4,19 +4,18 @@ from hoshino import Service, priv, util
 from hoshino.util import DailyNumberLimiter, pic2b64, concat_pic, silence
 import sqlite3, os, random, asyncio
 from nonebot import MessageSegment
-from hoshino import Service
 from hoshino.typing import CQEvent
 from hoshino.modules.priconne import _pcr_data
 from  PIL  import   Image,ImageFont,ImageDraw
 from io import BytesIO
 import base64
 from hoshino.modules.priconne import chara
-from hoshino.util import DailyNumberLimiter
+
 lmt = DailyNumberLimiter(1)
 sv = Service('pcr-duel', enable_on_default=True)
 DUEL_DB_PATH = os.path.expanduser('~/.hoshino/pcr_duel.db')
 SCORE_DB_PATH = os.path.expanduser('~/.hoshino/pcr_running_counter.db')
-BLACKLIST_ID = [1000,1072,1908,4031,9000,1069,1073,1701,1702]
+BLACKLIST_ID = [1000,1072, 1908, 4031, 9000,1069,1073,1701,1702]
 WAIT_TIME = 30
 DUEL_SUPPORT_TIME = 20
 #用于与赛跑金币互通
@@ -86,6 +85,8 @@ class ScoreCounter2:
             raise Exception(str(e))            
             
             
+            
+
 #记录贵族相关数据
 class DuelCounter:
     def __init__(self):
@@ -275,6 +276,11 @@ class DuelJudger:
         self.hasfired_on[gid] = False
 
 
+
+
+
+
+
 #记录决斗者id
     def init_duelid(self,gid):
         self.duelid[gid]=[] 
@@ -349,6 +355,7 @@ def get_girlnum(level:int):
     }    
     return numdict[str(level)] 
 
+
     
 
 @sv.on_fullmatch('贵族签到')
@@ -359,6 +366,10 @@ async def noblelogin(bot, ev: CQEvent):
         await bot.send(ev, '今天已经签到过了哦，明天再来吧。', at_sender=True)
         return
     duel = DuelCounter()
+    if duel._get_level(gid, uid)== 0:
+        msg = '您还未在本群创建过贵族，请发送 创建贵族 开始您的贵族之旅。'
+        await bot.send(ev, msg, at_sender=True)
+        return      
     score_counter = ScoreCounter2()
     lmt.increase(uid)
     score_counter._add_score(gid, uid ,100)
@@ -454,7 +465,10 @@ async def inquire_noble(bot, ev: CQEvent):
 '''
         await bot.send(ev, msg, at_sender=True)  
     
-         
+
+ 
+      
+          
 @sv.on_fullmatch(['招募女友','贵族约会'])   
 async def add_girl(bot, ev: CQEvent):
     gid = ev.group_id
@@ -496,6 +510,8 @@ async def add_girl(bot, ev: CQEvent):
         await bot.send(ev, msg, at_sender=True)        
 
 
+
+
 @sv.on_fullmatch(['升级爵位','升级贵族'])  
 async def add_girl(bot, ev: CQEvent):
     gid = ev.group_id
@@ -512,7 +528,10 @@ async def add_girl(bot, ev: CQEvent):
        msg:f'您已经是最高爵位{noblename}了，不能再升级了。'
        await bot.send(ev, msg, at_sender=True)
        return     
-   
+    
+    
+    
+    
     if cidnum < girlnum :
         msg = f'您的女友没满哦。\n需要达到{girlnum}名女友\n您现在有{cidnum}名。'
         await bot.send(ev, msg, at_sender=True)
@@ -529,6 +548,8 @@ async def add_girl(bot, ev: CQEvent):
     msg=f'花费了100金币\n您成功由{noblename}升到了{newnoblename}\n可以拥有{newgirlnum}名女友了哦。'
     await bot.send(ev, msg, at_sender=True)
 
+    
+
 @sv.on_prefix('贵族决斗')
 async def nobleduel(bot, ev: CQEvent):
     if ev.message[0].type == 'at':
@@ -542,6 +563,8 @@ async def nobleduel(bot, ev: CQEvent):
     duel_judger.turn_on(gid)
     id1 = ev.user_id
     duel = DuelCounter() 
+    
+    
     
     if duel._get_level(gid, id1)== 0:
         msg = f'[CQ:at,qq={id1}]决斗发起者还未在创建过贵族\n请发送 创建贵族 开始您的贵族之旅。'
@@ -565,11 +588,14 @@ async def nobleduel(bot, ev: CQEvent):
         await bot.send(ev, msg)
         return             
         
+        
+        
     duel_judger.init_isaccept(gid)
     duel_judger.set_duelid(gid,id1,id2)    
     duel_judger.turn_on_accept(gid)
     msg = f'[CQ:at,qq={id2}]对方向您发起了优雅的贵族决斗，请在{WAIT_TIME}秒内[接受/拒绝]。'
-    await bot.send(ev, msg)    
+    await bot.send(ev, msg)
+    
     await asyncio.sleep(WAIT_TIME)
     duel_judger.turn_off_accept(gid)
     if duel_judger.get_isaccept(gid) is False:
@@ -589,6 +615,9 @@ async def nobleduel(bot, ev: CQEvent):
 爵位为：{noblename2}
 其他人请在{DUEL_SUPPORT_TIME}秒选择支持的对象。
 [支持1/2号xxx金币]'''
+
+
+   
     await bot.send(ev, msg)
     duel_judger.turn_on_support(gid)
     await asyncio.sleep(DUEL_SUPPORT_TIME)
@@ -607,7 +636,7 @@ async def nobleduel(bot, ev: CQEvent):
         while(wait_n<30):
             if duel_judger.get_on_off_hasfired_status(gid):
                 break
-            
+            print("测试中")
             wait_n += 1
             await asyncio.sleep(1)
         if wait_n >=30:
@@ -633,9 +662,11 @@ async def nobleduel(bot, ev: CQEvent):
                 duel_judger.change_turn(gid)
                 duel_judger.turn_off_hasfired(gid)
                 duel_judger.turn_on_fire(gid)
-               
-    cidlist = duel._get_cards(gid,loser)    
+    print(winner,loser)            
+    cidlist = duel._get_cards(gid,loser) 
+    print(cidlist)
     selected_girl = random.choice(cidlist)
+    
     duel._delete_card(gid,loser,selected_girl)
     duel._add_card(gid,winner,selected_girl)
     c = chara.fromid(selected_girl)
@@ -663,6 +694,8 @@ async def nobleduel(bot, ev: CQEvent):
     duel_judger.turn_off(ev.group_id)    
     return            
     
+
+
 @sv.on_fullmatch('接受')
 async def duelaccept(bot, ev: CQEvent):
     gid = ev.group_id
@@ -673,7 +706,10 @@ async def duelaccept(bot, ev: CQEvent):
             await bot.send(ev, msg, at_sender=True)
             duel_judger.turn_off_accept(gid)
             duel_judger.on_isaccept(gid)
-       
+        else:
+            print('不是被决斗者')
+    else:print('现在不在决斗期间')
+        
 @sv.on_fullmatch('拒绝')
 async def duelrefuse(bot, ev: CQEvent):
     gid = ev.group_id
@@ -705,7 +741,7 @@ async def on_input_duel_score(bot, ev: CQEvent):
             match = ev['match']
             select_id = int(match.group(1))
             input_score = int(match.group(2))
-            
+            print(select_id,input_score)
             score_counter = ScoreCounter2()
             #若下注该群下注字典不存在则创建
             if duel_judger.get_support(gid) == 0:
@@ -722,6 +758,12 @@ async def on_input_duel_score(bot, ev: CQEvent):
                 msg = '决斗参与者不能支持。'
                 await bot.send(ev, msg, at_sender=True)
                 return                
+
+
+
+
+
+
             
             #检查金币是否足够下注
             if score_counter._judge_score(gid, uid ,input_score) == 0:
@@ -736,13 +778,15 @@ async def on_input_duel_score(bot, ev: CQEvent):
         await bot.send(ev, '错误:\n' + str(e))                
 
 
+
 #以下部分与赛跑的重合，有一个即可，两个插件都装建议注释掉。
 @sv.on_prefix(['领金币','领取金币'])
 async def add_score(bot, ev: CQEvent):
     try:
         score_counter = ScoreCounter2()
         gid = ev.group_id
-        uid = ev.user_id        
+        uid = ev.user_id
+        
         current_score = score_counter._get_score(gid, uid)
         if current_score == 0:
             score_counter._add_score(gid, uid ,50)
@@ -760,7 +804,8 @@ async def get_score(bot, ev: CQEvent):
     try:
         score_counter = ScoreCounter2()
         gid = ev.group_id
-        uid = ev.user_id        
+        uid = ev.user_id
+        
         current_score = score_counter._get_score(gid, uid)
         msg = f'您的金币为{current_score}'
         await bot.send(ev, msg, at_sender=True)
