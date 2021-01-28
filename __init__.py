@@ -717,7 +717,7 @@ async def add_girl(bot, ev: CQEvent):
         # 招募女友失败
         if random.random() < 0.4:
             losetext = random.choice(Addgirlfail)
-            msg = f'\n{losetext}\n您花费了300金币，但是没有约到新的女友。'
+            msg = f'\n{losetext}\n您花费了{GACHA_COST}金币，但是没有约到新的女友。'
             await bot.send(ev, msg, at_sender=True)
             return
 
