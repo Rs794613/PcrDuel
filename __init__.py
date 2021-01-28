@@ -18,6 +18,36 @@ SCORE_DB_PATH = os.path.expanduser('~/.hoshino/pcr_running_counter.db')
 BLACKLIST_ID = [1000,1072, 1908, 4031, 9000,1069,1073,1701,1702]
 WAIT_TIME = 30
 DUEL_SUPPORT_TIME = 20
+
+
+Addgirlfail = [
+'你参加了一场贵族舞会，热闹的舞会场今天竟然没人同你跳舞。',
+'你邀请到了心仪的女友跳舞，可是跳舞时却踩掉了她的鞋，她生气的离开了。',
+'你为这次舞会准备了很久，结果一不小心在桌子上睡着了，醒来时只看到了过期的邀请函。',
+'你参加了一场贵族舞会，可是舞会上只有一名男性向你一直眨眼。',
+'你准备参加一场贵族舞会，可惜因为忘记穿礼服，被拦在了门外。',
+'你沉浸在舞会的美食之中，忘了此行的目的。',
+'你本准备参加舞会，却被会长拉去出了一晚上刀。'
+]
+Addgirlsuccess = [
+'你参加了一场贵族舞会，你优雅的舞姿让每位年轻女孩都望向了你。',
+'你参加了一场贵族舞会，你的帅气使你成为了舞会的宠儿。',
+'你在舞会门口就遇到了一位女孩，你挽着她的手走进了舞会。',
+'你在舞会的闲聊中无意中谈到了自己显赫的家室，你成为了舞会的宠儿。',
+'没有人比你更懂舞会，每一个女孩都为你的风度倾倒。'
+]
+
+
+
+
+
+
+
+
+
+
+
+
 #用于与赛跑金币互通
 class ScoreCounter2:
     def __init__(self):
@@ -144,8 +174,14 @@ class DuelCounter:
                 "DELETE FROM CHARATABLE  WHERE GID=? AND CID=?",
                 (gid, cid),
             ) 
-
-
+            
+    #查询已被邀请的女友列表     
+    def _get_card_list(self,gid):
+        with self._connect() as conn:
+            r = conn.execute(
+                f"SELECT CID FROM CHARATABLE WHERE GID={gid}").fetchall()
+            return [c[0] for c in r]if r else {}  
+        
 
 
 
@@ -160,7 +196,7 @@ class DuelCounter:
     def _get_cards(self, gid, uid):  
         with self._connect() as conn:
             r = conn.execute(
-                "SELECT cid, NUM FROM UIDTABLE WHERE GID=? AND UID=? AND NUM>0", (gid, uid)
+                "SELECT CID, NUM FROM UIDTABLE WHERE GID=? AND UID=? AND NUM>0", (gid, uid)
             ).fetchall()
         return [c[0]for c in r]if r else {}  
     
@@ -200,6 +236,16 @@ class DuelCounter:
                 "INSERT OR REPLACE INTO LEVELTABLE (GID, UID, LEVEL) VALUES (?, ?, ?)",
                 (gid, uid, level),
             )
+    def _reduce_level(self, gid, uid, increment=1):
+        level = self._get_level(gid, uid)
+        level -= increment
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO LEVELTABLE (GID, UID, LEVEL) VALUES (?, ?, ?)",
+                (gid, uid, level),
+            )        
+            
+            
     def _set_level(self, gid, uid, level):
         with self._connect() as conn:
             conn.execute(
@@ -342,6 +388,35 @@ def get_pcr_id():
         if chara_id_list[0] not in BLACKLIST_ID: break
     return chara_id_list[0]
 
+#生成没被约过的角色列表
+def get_newgirl_list(gid):
+    chara_id_list = list(_pcr_data.CHARA_NAME.keys())
+    duel = DuelCounter()
+    old_list = duel._get_card_list(gid)
+    new_list = []
+    for card in chara_id_list:
+        if card not in BLACKLIST_ID and card not in old_list:
+            new_list.append(card)
+    return new_list
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #取爵位名
 def get_noblename(level:int):
     namedict = {
@@ -361,9 +436,24 @@ def get_girlnum(level:int):
     "3":7,
     "4":9,
     "5":11,
-    "6":12    
+    "6":13    
     }    
     return numdict[str(level)] 
+
+#返回升级到爵位所需要的金币数
+def get_noblescore(level:int):
+    numdict = {
+    "1":0,
+    "2":100,
+    "3":300,
+    "4":500,
+    "5":1000,
+    "6":2000    
+    }  
+    return numdict[str(level)]
+
+
+
 
 
     
@@ -451,12 +541,12 @@ async def inquire_noble(bot, ev: CQEvent):
     else:
         for cid in cidlist:
             charalist.append(chara.Chara(cid,0,0)) 
-        if cidnum <=6:
+        if cidnum <=7:
     
             res = chara.gen_team_pic(charalist, star_slot_verbose=False)
         else:
-            res1 = chara.gen_team_pic(charalist[:6], star_slot_verbose=False)
-            res2 = chara.gen_team_pic(charalist[6:], star_slot_verbose=False)
+            res1 = chara.gen_team_pic(charalist[:7], star_slot_verbose=False)
+            res2 = chara.gen_team_pic(charalist[7:], star_slot_verbose=False)
             res = concat_pic([res1, res2]) 
         bio  = BytesIO()
         res.save(bio, format='PNG')
@@ -475,16 +565,14 @@ async def inquire_noble(bot, ev: CQEvent):
 '''
         await bot.send(ev, msg, at_sender=True)  
     
-
- 
-      
           
-@sv.on_fullmatch(['招募女友','贵族约会'])   
+@sv.on_fullmatch(['招募女友','贵族舞会','贵族约会'])   
 async def add_girl(bot, ev: CQEvent):
     gid = ev.group_id
     uid = ev.user_id
     duel = DuelCounter() 
     score_counter = ScoreCounter2()
+
     if duel._get_level(gid, uid)== 0:
         msg = '您还未在本群创建过贵族，请发送 创建贵族 开始您的贵族之旅。'
         duel_judger.turn_off(ev.group_id) 
@@ -507,16 +595,29 @@ async def add_girl(bot, ev: CQEvent):
             msg = '您的金币不足300哦。'
             await bot.send(ev, msg, at_sender=True)
             return
-        score_counter._reduce_score(gid, uid ,300)
-        
-        cid = get_pcr_id()
-        #防止女友重复
-        while duel._get_card_owner(gid,cid)!=0:
-            cid = get_pcr_id()
+        newgirllist = get_newgirl_list(gid)
+        #判断女友是否被抢没
+        if len(newgirllist) == 0:
+            await bot.send(ev, '这个群已经没有可以约到的新女友了哦。', at_sender=True)
+            return    
+        score_counter._reduce_score(gid, uid ,300)   
+
+
+        #招募女友失败
+        if random.random() <0.4:
+            losetext = random.choice(Addgirlfail) 
+            msg = f'\n{losetext}\n您花费了300金币，但是没有约到新的女友。'
+            await bot.send(ev, msg, at_sender=True)
+            return
+            
+            
+        #招募女友成功
+        cid = random.choice(newgirllist)
+
         duel._add_card(gid,uid,cid)
         c = chara.fromid(cid)
-        
-        msg = f'\n招募女友成功！\n您花费了300金币\n新招募的女友为：{c.name}{c.icon.cqcode}'
+        wintext = random.choice(Addgirlsuccess)
+        msg = f'\n{wintext}\n招募女友成功！\n您花费了300金币\n新招募的女友为：{c.name}{c.icon.cqcode}'
         await bot.send(ev, msg, at_sender=True)        
 
 
@@ -534,28 +635,30 @@ async def add_girl(bot, ev: CQEvent):
     girlnum = get_girlnum(level) 
     cidlist = duel._get_cards(gid,uid)
     cidnum = len(cidlist)  
+    
+   
     if level ==6:
        msg = f'您已经是最高爵位{noblename}了，不能再升级了。'
        await bot.send(ev, msg, at_sender=True)
        return     
     
-    
-    
-    
     if cidnum < girlnum :
         msg = f'您的女友没满哦。\n需要达到{girlnum}名女友\n您现在有{cidnum}名。'
         await bot.send(ev, msg, at_sender=True)
         return
-    if  score<100:
-        msg = '您的金币不足100哦。'
+    needscore = get_noblescore(level+1)
+    futurename = get_noblename(level+1)
+      
+    if  score < needscore:
+        msg = f'您的金币不足哦。\n升级到{futurename}需要{needscore}金币'
         await bot.send(ev, msg, at_sender=True)
         return    
-    score_counter._reduce_score(gid, uid ,100)
+    score_counter._reduce_score(gid, uid ,needscore)
     duel._add_level(gid,uid)
     newlevel = duel._get_level(gid,uid)
     newnoblename = get_noblename(newlevel)
     newgirlnum = get_girlnum(newlevel) 
-    msg=f'花费了100金币\n您成功由{noblename}升到了{newnoblename}\n可以拥有{newgirlnum}名女友了哦。'
+    msg=f'花费了{needscore}金币\n您成功由{noblename}升到了{newnoblename}\n可以拥有{newgirlnum}名女友了哦。'
     await bot.send(ev, msg, at_sender=True)
 
     
@@ -573,6 +676,7 @@ async def nobleduel(bot, ev: CQEvent):
     duel_judger.turn_on(gid)
     id1 = ev.user_id
     duel = DuelCounter() 
+
     
     
     
@@ -597,9 +701,30 @@ async def nobleduel(bot, ev: CQEvent):
         duel_judger.turn_off(ev.group_id) 
         await bot.send(ev, msg)
         return             
-        
-        
-        
+ 
+    #判定双方的女友是否已经超过上限
+    level_1 = duel._get_level(gid,id1)
+    noblename_1 = get_noblename(level_1)
+    girlnum_1 = get_girlnum(level_1) 
+    cidlist_1 = duel._get_cards(gid,id1)
+    cidnum_1 = len(cidlist_1)
+    #这里设定大于才会提醒，就是可以超上限1名，可以自己改成大于等于。
+    if cidnum_1 > girlnum_1:
+       msg = f'[CQ:at,qq={id1}]您的女友超过了爵位上限，先去升级爵位吧。' 
+       duel_judger.turn_off(ev.group_id) 
+       await bot.send(ev, msg)
+       return      
+    level_2 = duel._get_level(gid,id2)
+    noblename_2 = get_noblename(level_2)
+    girlnum_2 = get_girlnum(level_2) 
+    cidlist_2 = duel._get_cards(gid,id2)
+    cidnum_2= len(cidlist_2)
+    if cidnum_2 > girlnum_2:
+       msg = f'[CQ:at,qq={id2}]您的女友超过了爵位上限，先去升级爵位吧。' 
+       duel_judger.turn_off(ev.group_id) 
+       await bot.send(ev, msg)
+       return  
+      
     duel_judger.init_isaccept(gid)
     duel_judger.set_duelid(gid,id1,id2)    
     duel_judger.turn_on_accept(gid)
@@ -673,26 +798,37 @@ async def nobleduel(bot, ev: CQEvent):
                 duel_judger.change_turn(gid)
                 duel_judger.turn_off_hasfired(gid)
                 duel_judger.turn_on_fire(gid)
-                
+  
     cidlist = duel._get_cards(gid,loser) 
-    
     selected_girl = random.choice(cidlist)
-    
     duel._delete_card(gid,loser,selected_girl)
     duel._add_card(gid,winner,selected_girl)
     c = chara.fromid(selected_girl)
     msg = f'[CQ:at,qq={loser}]您输掉了贵族决斗，您被抢走了女友\n{c.name}{c.icon.cqcode}'
     await bot.send(ev, msg)
+    
+    #判定是否掉爵位
+    level_loser = duel._get_level(gid,loser)
+    if level_loser>1:
+        noblename_loser = get_noblename(level_loser)
+        girlnum_loser = get_girlnum(level_loser-1) 
+        cidlist_loser = duel._get_cards(gid,loser)
+        cidnum_loser = len(cidlist_loser)
+        if cidnum_loser < girlnum_loser:
+            duel._reduce_level(gid,loser)
+            new_noblename = get_noblename(level_loser-1)
+            msg = f'[CQ:at,qq={loser}]\n您的女友数为{cidnum_loser}名\n小于爵位需要的女友数{girlnum_loser}名\n您的爵位下降了到了{new_noblename}'
+            await bot.send(ev, msg)
+            
+
+    
     #结算下注金币            
     score_counter = ScoreCounter2()
     support = duel_judger.get_support(gid)
     winuid = []    
     supportmsg = '金币结算:\n'
     winnum = duel_judger.get_duelnum(gid,winner) 
-    
-    
-    
-    
+
     if support!=0:
         for uid in support:
             support_id = support[uid][0]
@@ -843,14 +979,41 @@ async def cheat_score(bot, ev: CQEvent):
     await bot.send(ev, msg)
 
 
-
-
+@sv.on_fullmatch('重置决斗')
+async def init_duel(bot, ev: CQEvent):
+    if not priv.check_priv(ev, priv.ADMIN):
+        await bot.finish(ev, '只有群管理才能使用重置决斗哦。', at_sender=True)   
+    duel_judger.turn_off(ev.group_id) 
+    msg = '已重置本群决斗状态！'
+    await bot.send(ev, msg, at_sender=True)
     
+  
+
+
+@sv.on_prefix(['查女友','查询女友','查看女友'])
+async def search_girl(bot, ev: CQEvent):
+    args = ev.message.extract_plain_text().split()
+    gid = ev.group_id
+    if not args:
+        await bot.send(ev, '请输入查女友+pcr角色名。', at_sender=True)
+        return    
+    name = args[0]
+    cid = chara.name2id(name)
+    if cid == 1000:
+        await bot.send(ev, '请输入正确的pcr角色名。', at_sender=True)
+        return
+    duel = DuelCounter()    
+    owner = duel._get_card_owner(gid,cid)
+    c = chara.fromid(cid)
     
-
-
-
-
+    if owner == 0:
+        await bot.send(ev, f'{c.name}现在还是单身哦，快去约到她吧。', at_sender=True)
+        return
+    else:
+        msg = f'{c.name}现在正在\n[CQ:at,qq={owner}]的身边哦。{c.icon.cqcode}'
+        await bot.send(ev, msg)
+        
+       
 
 
 
