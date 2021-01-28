@@ -1,26 +1,46 @@
-from hoshino import Service, R
-from hoshino.typing import *
-from hoshino import Service, priv, util
-from hoshino.util import DailyNumberLimiter, pic2b64, concat_pic, silence
-import sqlite3, os, random, asyncio
-from nonebot import MessageSegment
-from hoshino.typing import CQEvent
-from hoshino.modules.priconne import _pcr_data
-from PIL import Image, ImageFont, ImageDraw
-from io import BytesIO
+import asyncio
 import base64
-from hoshino.modules.priconne import chara
+import os
+import random
+import sqlite3
 from datetime import datetime, timedelta
+from io import BytesIO
+
+from hoshino import Service, priv
+from hoshino.modules.priconne import _pcr_data
+from hoshino.modules.priconne import chara
+from hoshino.typing import *
+from hoshino.typing import CQEvent
+from hoshino.util import DailyNumberLimiter, concat_pic
 
 sv = Service('pcr-duel', enable_on_default=True)
 DUEL_DB_PATH = os.path.expanduser('~/.hoshino/pcr_duel.db')
 SCORE_DB_PATH = os.path.expanduser('~/.hoshino/pcr_running_counter.db')
-BLACKLIST_ID = [1000, 1072, 1908, 4031, 9000, 1069, 1073, 1701, 1702]
-WAIT_TIME = 30
-DUEL_SUPPORT_TIME = 20
+BLACKLIST_ID = [1000, 1072, 1908, 4031, 9000, 1069, 1073, 1701, 1702] # 黑名单ID
+WAIT_TIME = 30 # 对战接受等待时间
+DUEL_SUPPORT_TIME = 20 # 赌钱等待时间
 DB_PATH = os.path.expanduser("~/.hoshino/pcr_duel.db")
 SIGN_DAILY_LIMIT = 1  # 机器人每天签到的次数
 RESET_HOUR = 0  # 每日使用次数的重置时间，0代表凌晨0点，1代表凌晨1点，以此类推
+SIGN_BONUS = 100  # 签到获得量
+GACHA_COST = 300  # 抽老婆需求
+ZERO_GET_AMOUNT = 50  # 没钱补给量
+LEVEL_GIRL_NEED = {
+        "1": 3,
+        "2": 5,
+        "3": 7,
+        "4": 9,
+        "5": 11,
+        "6": 13
+    } # 升级所需要的老婆，格式为["等级“: 需求]
+LEVEL_COST_DICT = {
+        "1": 0,
+        "2": 100,
+        "3": 300,
+        "4": 500,
+        "5": 1000,
+        "6": 2000
+    } # 升级所需要的钱钱，格式为["等级“: 需求]
 Addgirlfail = [
     '你参加了一场贵族舞会，热闹的舞会场今天竟然没人同你跳舞。',
     '你邀请到了心仪的女友跳舞，可是跳舞时却踩掉了她的鞋，她生气的离开了。',
@@ -540,27 +560,13 @@ def get_noblename(level: int):
 
 # 返回爵位对应的女友数
 def get_girlnum(level: int):
-    numdict = {
-        "1": 3,
-        "2": 5,
-        "3": 7,
-        "4": 9,
-        "5": 11,
-        "6": 13
-    }
+    numdict = LEVEL_GIRL_NEED
     return numdict[str(level)]
 
 
 # 返回升级到爵位所需要的金币数
 def get_noblescore(level: int):
-    numdict = {
-        "1": 0,
-        "2": 100,
-        "3": 300,
-        "4": 500,
-        "5": 1000,
-        "6": 2000
-    }
+    numdict = LEVEL_COST_DICT
     return numdict[str(level)]
 
 
@@ -579,11 +585,11 @@ async def noblelogin(bot, ev: CQEvent):
         return
     score_counter = ScoreCounter2()
     daily_sign_limiter.increase(guid)
-    score_counter._add_score(gid, uid, 100)
+    score_counter._add_score(gid, uid, {SIGN_BONUS})
     level = duel._get_level(gid, uid)
     noblename = get_noblename(level)
     score = score_counter._get_score(gid, uid)
-    msg = f'签到成功！已领取100金币。\n{noblename}先生，您现在共有{score}金币。'
+    msg = f'签到成功！已领取{SIGN_BONUS}金币。\n{noblename}先生，您现在共有{score}金币。'
     await bot.send(ev, msg, at_sender=True)
 
 
@@ -697,8 +703,8 @@ async def add_girl(bot, ev: CQEvent):
             await bot.send(ev, msg, at_sender=True)
             return
         score = score_counter._get_score(gid, uid)
-        if score < 300:
-            msg = '您的金币不足300哦。'
+        if score < {GACHA_COST}:
+            msg = f'您的金币不足{GACHA_COST}哦。'
             await bot.send(ev, msg, at_sender=True)
             return
         newgirllist = get_newgirl_list(gid)
@@ -706,7 +712,7 @@ async def add_girl(bot, ev: CQEvent):
         if len(newgirllist) == 0:
             await bot.send(ev, '这个群已经没有可以约到的新女友了哦。', at_sender=True)
             return
-        score_counter._reduce_score(gid, uid, 300)
+        score_counter._reduce_score(gid, uid, {GACHA_COST})
 
         # 招募女友失败
         if random.random() < 0.4:
@@ -721,7 +727,7 @@ async def add_girl(bot, ev: CQEvent):
         duel._add_card(gid, uid, cid)
         c = chara.fromid(cid)
         wintext = random.choice(Addgirlsuccess)
-        msg = f'\n{wintext}\n招募女友成功！\n您花费了300金币\n新招募的女友为：{c.name}{c.icon.cqcode}'
+        msg = f'\n{wintext}\n招募女友成功！\n您花费了{GACHA_COST}金币\n新招募的女友为：{c.name}{c.icon.cqcode}'
         await bot.send(ev, msg, at_sender=True)
 
 
@@ -1029,8 +1035,8 @@ async def add_score(bot, ev: CQEvent):
 
         current_score = score_counter._get_score(gid, uid)
         if current_score == 0:
-            score_counter._add_score(gid, uid, 50)
-            msg = '您已领取50金币'
+            score_counter._add_score(gid, uid, {ZERO_GET_AMOUNT})
+            msg = f'您已领取{ZERO_GET_AMOUNT}金币'
             await bot.send(ev, msg, at_sender=True)
             return
         else:
