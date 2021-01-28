@@ -288,6 +288,16 @@ class DuelJudger:
         self.duelid[gid]=[id1,id2]
     def get_duelid(self,gid):
         return self.duelid[gid] if self.accept_on.get(gid) is not None else [0,0]  
+    #查询一个决斗者是1号还是2号
+    def get_duelnum(self,gid,uid):
+        return self.duelid[gid].index(uid)+1
+        
+        
+        
+        
+        
+        
+        
    
 #记录由谁开枪
     def init_turn(self,gid):
@@ -636,7 +646,7 @@ async def nobleduel(bot, ev: CQEvent):
         while(wait_n<30):
             if duel_judger.get_on_off_hasfired_status(gid):
                 break
-            print("测试中")
+            
             wait_n += 1
             await asyncio.sleep(1)
         if wait_n >=30:
@@ -655,16 +665,17 @@ async def nobleduel(bot, ev: CQEvent):
                 await bot.send(ev, msg)                
                 break 
             else :
-                id = duel_judger.get_duelid(gid)[duel_judger.get_turn(gid)-1] 
-                msg = f'[CQ:at,qq={id}]\n砰！松了一口气，你并没有死。'
+                id = duel_judger.get_duelid(gid)[duel_judger.get_turn(gid)-1]
+                id2 = duel_judger.get_duelid(gid)[2-duel_judger.get_turn(gid)]
+                msg = f'[CQ:at,qq={id}]\n砰！松了一口气，你并没有死。\n[CQ:at,qq={id2}]\n轮到你开枪了哦。'
                 await bot.send(ev, msg)
                 n += 1
                 duel_judger.change_turn(gid)
                 duel_judger.turn_off_hasfired(gid)
                 duel_judger.turn_on_fire(gid)
-    print(winner,loser)            
+                
     cidlist = duel._get_cards(gid,loser) 
-    print(cidlist)
+    
     selected_girl = random.choice(cidlist)
     
     duel._delete_card(gid,loser,selected_girl)
@@ -677,11 +688,16 @@ async def nobleduel(bot, ev: CQEvent):
     support = duel_judger.get_support(gid)
     winuid = []    
     supportmsg = '金币结算:\n'
+    winnum = duel_judger.get_duelnum(gid,winner) 
+    
+    
+    
+    
     if support!=0:
         for uid in support:
             support_id = support[uid][0]
             support_score = support[uid][1]
-            if support_id == winner:
+            if support_id == winnum:
                 winuid.append(uid)
                 winscore = support_score*2
                 score_counter._add_score(gid, uid ,winscore)
@@ -758,13 +774,7 @@ async def on_input_duel_score(bot, ev: CQEvent):
                 msg = '决斗参与者不能支持。'
                 await bot.send(ev, msg, at_sender=True)
                 return                
-
-
-
-
-
-
-            
+          
             #检查金币是否足够下注
             if score_counter._judge_score(gid, uid ,input_score) == 0:
                 msg = '您的金币不足。'
@@ -815,9 +825,28 @@ async def get_score(bot, ev: CQEvent):
 
 
 
+@sv.on_rex(f'^为(\d+)充值(\d+)金币$')
+async def cheat_score(bot, ev: CQEvent):
+    if not priv.check_priv(ev, priv.SUPERUSER):
+        await bot.finish(ev, '只有机器人管理才能使用氪金功能哦。', at_sender=True)    
+    gid = ev.group_id
+    match = ev['match']
+    id = int(match.group(1))
+    num =int(match.group(2))
+    duel = DuelCounter()
+    score_counter = ScoreCounter2()    
+    if duel._get_level(gid, id)== 0:
+        await bot.finish(ev, '该用户还未在本群创建贵族哦。', at_sender=True) 
+    score_counter._add_score(gid, id ,num)
+    score = score_counter._get_score(gid, id)
+    msg = f'已为[CQ:at,qq={id}]充值{num}金币。\n现在共有{score}金币。'
+    await bot.send(ev, msg)
 
 
 
+
+    
+    
 
 
 
