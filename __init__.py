@@ -658,9 +658,9 @@ async def noblelogin(bot, ev: CQEvent):
     gid = ev.group_id
     uid = ev.user_id
     guid = gid, uid
-    #if not daily_sign_limiter.check(guid):
-        #await bot.send(ev, '今天已经签到过了哦，明天再来吧。', at_sender=True)
-        #return
+    if not daily_sign_limiter.check(guid):
+        await bot.send(ev, '今天已经签到过了哦，明天再来吧。', at_sender=True)
+        return
     duel = DuelCounter()
     
     if duel._get_level(gid, uid) == 0:
@@ -669,7 +669,7 @@ async def noblelogin(bot, ev: CQEvent):
         return
     #根据概率随机获得收益。 
     score_counter = ScoreCounter2()
-    #daily_sign_limiter.increase(guid)    
+    daily_sign_limiter.increase(guid)    
     loginnum_ = ['1','2', '3', '4']  
     r_ = [0.3, 0.4, 0.2, 0.1]  
     sum_ = 0
