@@ -736,7 +736,7 @@ async def add_noble(bot, ev: CQEvent):
         await bot.send(ev, '错误:\n' + str(e))
 
 
-@sv.on_fullmatch(['查询贵族', '查询贵族', '我的贵族'])
+@sv.on_fullmatch(['查询贵族', '贵族查询', '我的贵族'])
 async def inquire_noble(bot, ev: CQEvent):
     gid = ev.group_id
     uid = ev.user_id
