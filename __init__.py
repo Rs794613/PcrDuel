@@ -1266,6 +1266,7 @@ async def nobleduel(bot, ev: CQEvent):
     else:
         c = chara.fromid(selected_girl)
         duel._add_card(gid, winner, selected_girl)
+        duel._delete_card(gid, loser, selected_girl)
         msg = f'[CQ:at,qq={loser}]您输掉了贵族决斗，您被抢走了女友\n{c.name}{c.icon.cqcode}'
         await bot.send(ev, msg)
         #判断赢家的角色列表里是否有复制人可可萝。
