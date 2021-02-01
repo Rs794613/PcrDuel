@@ -129,7 +129,9 @@ async def duel_help(bot, ev: CQEvent):
    11.分手+角色名(需分手费)
    
   一个女友只属于一位群友
-
+  猜角色/猜头像获胜
+  每日可获得6次100金币
+  
   声望系统国王后开启，
   具体指令发送:
   声望系统帮助
@@ -931,7 +933,7 @@ async def inquire_noble(bot, ev: CQEvent):
         #判断是否开启声望
         prestige = score_counter._get_prestige(gid,uid)
         if prestige == None:
-            partmsg = '未开启声望系统。'
+            partmsg = '未开启声望系统'
         else:
             partmsg = f'您的声望为{prestige}点'
         
@@ -1265,8 +1267,8 @@ async def nobleduel(bot, ev: CQEvent):
 
     else:
         c = chara.fromid(selected_girl)
-        duel._add_card(gid, winner, selected_girl)
         duel._delete_card(gid, loser, selected_girl)
+        duel._add_card(gid, winner, selected_girl)
         msg = f'[CQ:at,qq={loser}]您输掉了贵族决斗，您被抢走了女友\n{c.name}{c.icon.cqcode}'
         await bot.send(ev, msg)
         #判断赢家的角色列表里是否有复制人可可萝。
@@ -1544,14 +1546,19 @@ async def reset_chara(bot, ev: CQEvent):
         cidlist = duel._get_cards(gid, id)
         for cid in cidlist:
             duel._delete_card(gid, id, cid)
+        queen = duel._search_queen(gid,uid)
+        duel._delete_queen_owner(gid,queen)
         duel._set_level(gid, id, 0)    
-  
         await bot.finish(ev, f'已清空用户{id}的女友和贵族等级。', at_sender=True)
 
 
 @sv.on_prefix('分手')
 async def breakup(bot, ev: CQEvent):
     if BREAK_UP_SWITCH == True:
+        if duel_judger.get_on_off_accept_status(gid):
+            msg = '现在正在决斗中哦，请决斗后再来谈分手事宜吧。'
+            await bot.finish(ev, msg, at_sender=True)
+
         args = ev.message.extract_plain_text().split()
         gid = ev.group_id
         uid = ev.user_id
@@ -1594,9 +1601,12 @@ async def open_prestige(bot, ev: CQEvent):
     uid = ev.user_id
     duel = DuelCounter()
     level = duel._get_level(gid, uid)
+    score_counter = ScoreCounter2()
+    prestige = score_counter._get_prestige(gid,uid)
+    if prestige != None:
+        await bot.finish(ev, '您已经开启了声望系统哦。', at_sender=True)    
     if level != 6:
         await bot.finish(ev, '只有国王才可以开启声望系统哦。', at_sender=True)    
-    score_counter = ScoreCounter2()
     score_counter._set_prestige(gid,uid,0)
     msg = '成功开启声望系统！国王殿下，向着成为皇帝的目标进发吧。'
     await bot.send(ev, msg, at_sender=True)
@@ -1645,6 +1655,9 @@ async def be_emperor(bot, ev: CQEvent):
     
     if prestige == None:
         await bot.finish(ev, '您还未开启声望系统哦。', at_sender=True)
+    if level!=6:
+        await bot.finish(ev, '只有国王才能进行加冕仪式哦。', at_sender=True)
+  
     if prestige < 10000: 
         await bot.finish(ev, '加冕仪式需要10000声望，您的声望不足哦。', at_sender=True)
     score = score_counter._get_score(gid, uid)
