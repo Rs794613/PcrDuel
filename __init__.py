@@ -129,7 +129,9 @@ async def duel_help(bot, ev: CQEvent):
    11.分手+角色名(需分手费)
    
   一个女友只属于一位群友
-
+  猜角色/猜头像获胜
+  每日可获得6次100金币
+  
   声望系统国王后开启，
   具体指令发送:
   声望系统帮助
@@ -1553,16 +1555,15 @@ async def reset_chara(bot, ev: CQEvent):
 
 @sv.on_prefix('分手')
 async def breakup(bot, ev: CQEvent):
+    if BREAK_UP_SWITCH == True:
         args = ev.message.extract_plain_text().split()
         gid = ev.group_id
         uid = ev.user_id
         duel = DuelCounter()
         level = duel._get_level(gid, uid)
-        if BREAK_UP_SWITCH == True:
-            if duel_judger.get_on_off_accept_status(gid):
-            msg = '现在正在决斗中哦，请决斗后再来谈分手事宜吧。'
-            await bot.finish(ev, msg, at_sender=True)
-
+        if duel_judger.get_on_off_accept_status(gid):
+                msg = '现在正在决斗中哦，请决斗后再来谈分手事宜吧。'
+                await bot.finish(ev, msg, at_sender=True)
         if level == 0:
             await bot.finish(ev, '该用户还未在本群创建贵族哦。', at_sender=True)
         if not args:
