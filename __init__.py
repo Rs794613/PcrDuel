@@ -1546,7 +1546,7 @@ async def reset_chara(bot, ev: CQEvent):
         cidlist = duel._get_cards(gid, id)
         for cid in cidlist:
             duel._delete_card(gid, id, cid)
-        queen = duel._search_queen(gid,uid)
+        queen = duel._search_queen(gid,id)
         duel._delete_queen_owner(gid,queen)
         duel._set_level(gid, id, 0)    
         await bot.finish(ev, f'已清空用户{id}的女友和贵族等级。', at_sender=True)
