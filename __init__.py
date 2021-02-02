@@ -27,7 +27,6 @@ GACHA_COST = 300  # 抽老婆需求
 ZERO_GET_AMOUNT = 50  # 没钱补给量
 WIN_NUM = 1 #下注获胜赢得的倍率
 BREAK_UP_SWITCH = True #分手系统开关
-FILE_PATH = os.path.dirname(__file__)#读取Dlc的json用
 LEVEL_GIRL_NEED = {
         "1": 3,
         "2": 5,
@@ -1308,7 +1307,7 @@ async def nobleduel(bot, ev: CQEvent):
             await bot.send(ev, msg)
 
     #结算下注金币，判定是否为超时局。
-    if is_overtime == 1 and n!=6
+    if is_overtime == 1 and n!=6:
         msg = '本局为超时局，不进行金币结算，支持的金币全部返还。'
         await bot.send(ev, msg)
         duel_judger.set_support(ev.group_id)
