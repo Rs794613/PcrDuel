@@ -27,6 +27,7 @@ GACHA_COST = 300  # 抽老婆需求
 ZERO_GET_AMOUNT = 50  # 没钱补给量
 WIN_NUM = 1 #下注获胜赢得的倍率
 BREAK_UP_SWITCH = True #分手系统开关
+FILE_PATH = os.path.dirname(__file__)#读取Dlc的json用
 LEVEL_GIRL_NEED = {
         "1": 3,
         "2": 5,
@@ -106,9 +107,11 @@ Login600 =[
     '今天你的一位叔叔去世了，无儿无女的他，留给了你一大笔遗产。',
     '今天你在比武大会上获得了优胜，获得了全场的喝彩。',
     '今天你名下的马夺得了赛马的冠军，你感到无比的自豪。'
-    
-    
+      
 ]
+
+
+#帮助中猜角色猜头像获胜加金币为个人魔改，如果不魔改可以删掉这两行描述。
 @sv.on_fullmatch(['贵族决斗帮助','贵族帮助','贵族指令'])
 async def duel_help(bot, ev: CQEvent):
     msg='''
@@ -1305,9 +1308,10 @@ async def nobleduel(bot, ev: CQEvent):
             await bot.send(ev, msg)
 
     #结算下注金币，判定是否为超时局。
-    if is_overtime == 1:
+    if is_overtime == 1 and n!=6
         msg = '本局为超时局，不进行金币结算，支持的金币全部返还。'
         await bot.send(ev, msg)
+        duel_judger.set_support(ev.group_id)
         duel_judger.turn_off(ev.group_id)
         return
     
