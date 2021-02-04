@@ -12,6 +12,7 @@ from hoshino.modules.priconne import chara
 from hoshino.typing import CQEvent
 from hoshino.util import DailyNumberLimiter
 import copy
+import json
 
 sv = Service('pcr-duel', enable_on_default=True)
 DUEL_DB_PATH = os.path.expanduser('~/.hoshino/pcr_duel.db')
@@ -27,6 +28,7 @@ GACHA_COST = 300  # 抽老婆需求
 ZERO_GET_AMOUNT = 50  # 没钱补给量
 WIN_NUM = 1 #下注获胜赢得的倍率
 BREAK_UP_SWITCH = True #分手系统开关
+FILE_PATH = os.path.dirname(__file__)#用于加载dlcjson
 LEVEL_GIRL_NEED = {
         "1": 3,
         "2": 5,
@@ -109,7 +111,6 @@ Login600 =[
       
 ]
 
-
 #帮助中猜角色猜头像获胜加金币为个人魔改，如果不魔改可以删掉这两行描述。
 @sv.on_fullmatch(['贵族决斗帮助','贵族帮助','贵族指令'])
 async def duel_help(bot, ev: CQEvent):
@@ -129,6 +130,7 @@ async def duel_help(bot, ev: CQEvent):
    10.重置决斗(限管理，决
    斗卡住时用)
    11.分手+角色名(需分手费)
+   12.dlc帮助(增加dlc角色)
    
   一个女友只属于一位群友
   猜角色/猜头像获胜
@@ -140,7 +142,134 @@ async def duel_help(bot, ev: CQEvent):
 ╚                                        ╝
 '''  
     await bot.send(ev, msg)
+    
+#加载DLC部分代码
+#这里记录每个dlc的列表范围
 
+blhxlist = range(6000,6506)
+yozilist = range(1523,1544)
+genshinlist = range(7001,7018)
+bangdreamlist = range(1601,1636)
+
+
+#这里记录dlc名字和对应列表
+dlcdict = {
+        'blhx':blhxlist,
+        'yozi':yozilist,
+        'genshin':genshinlist,
+        'bangdream':bangdreamlist
+        }
+
+
+#这里记录每个dlc的介绍
+dlcintro = {
+        'blhx':'碧蓝航线手游角色包。',
+        'yozi':'柚子社部分角色包。',
+        'genshin':'原神角色包。',
+        'bangdream':'邦邦手游角色包。'
+        }
+
+
+
+
+# 这个字典保存保存每个DLC开启的群列表，pcr默认一直开启。
+dlc_switch={}
+
+with open(os.path.join(FILE_PATH,'dlc_config.json'),'r',encoding='UTF-8') as f:
+    dlc_switch = json.load(f, strict=False)
+def save_dlc_switch():
+    with open(os.path.join(FILE_PATH,'dlc_config.json'),'w',encoding='UTF-8') as f:
+        json.dump(dlc_switch,f,ensure_ascii=False)
+
+
+
+@sv.on_prefix(['加载dlc','加载DLC','开启dlc','开启DLC'])
+async def add_dlc(bot, ev: CQEvent):
+    gid = ev.group_id
+    if not priv.check_priv(ev, priv.OWNER):
+        await bot.finish(ev, '只有群主才能加载dlc哦。', at_sender=True)
+    args = ev.message.extract_plain_text().split()
+    if len(args)>= 2:
+        await bot.finish(ev, '指令格式错误。', at_sender=True)
+    if len(args)==0:
+        await bot.finish(ev, '请输入加载dlc+dlc名。', at_sender=True)
+    dlcname = args[0]
+    if dlcname not in dlcdict.keys():
+        await bot.finish(ev, 'DLC名填写错误。', at_sender=True)        
+
+    if gid in dlc_switch[dlcname]:
+        await bot.finish(ev, '本群已开启此dlc哦。', at_sender=True)
+    dlc_switch[dlcname].append(gid)
+    save_dlc_switch()
+    await bot.finish(ev, f'加载dlc {dlcname}  成功!', at_sender=True)
+        
+    
+
+@sv.on_prefix(['卸载dlc','卸载DLC','关闭dlc','关闭DLC'])
+async def delete_dlc(bot, ev: CQEvent):
+    gid = ev.group_id
+    if not priv.check_priv(ev, priv.OWNER):
+        await bot.finish(ev, '只有群主才能卸载dlc哦。', at_sender=True)
+    args = ev.message.extract_plain_text().split()
+    if len(args)>= 2:
+        await bot.finish(ev, '指令格式错误', at_sender=True)
+    if len(args)==0:
+        await bot.finish(ev, '请输入卸载dlc+dlc名。', at_sender=True)
+    dlcname = args[0]
+    if dlcname not in dlcdict.keys():
+        await bot.finish(ev, 'DLC名填写错误', at_sender=True)        
+
+    if gid not in dlc_switch[dlcname]:
+        await bot.finish(ev, '本群没有开启此dlc哦。', at_sender=True)
+    dlc_switch[dlcname].remove(gid)
+    save_dlc_switch()
+    await bot.finish(ev, f'卸载dlc {dlcname}  成功!', at_sender=True)
+    
+
+
+@sv.on_fullmatch(['dlc列表','DLC列表','dlc介绍','DLC介绍'])
+async def intro_dlc(bot, ev: CQEvent):
+    msg = '可用DLC列表：\n\n'
+    i=1
+    for dlc in dlcdict.keys():
+        msg+=f'{i}.{dlc}:\n'
+        intro = dlcintro[dlc]
+        msg+=f'介绍:{intro}\n'
+        num = len(dlcdict[dlc])
+        msg+=f'共有{num}名角色\n\n'
+        i+=1
+    msg+= '发送 加载\卸载dlc+dlc名\n可加载\卸载dlc\n卸载的dlc不会被抽到，但是角色仍留在玩家仓库，可以被抢走。'    
+        
+    await bot.finish(ev, msg)
+
+@sv.on_fullmatch(['dlc帮助','DLC帮助','dlc指令','DLC指令'])
+async def help_dlc(bot, ev: CQEvent):
+    msg = '''
+╔                                 ╗
+         DLC帮助
+      
+  1.加载\卸载dlc+dlc名
+  2.dlc列表(查看介绍)
+  
+  卸载的dlc不会被抽到
+  但是角色仍留在仓库
+  可以被他人抢走
+  
+╚                                 ╝    
+'''
+    await bot.finish(ev, msg)
+
+
+
+
+#取得该群未开启的dlc所形成的黑名单
+def get_dlc_blacklist(gid):
+
+    dlc_blacklist=[]
+    for dlc in dlcdict.keys():
+        if gid not in dlc_switch[dlc]:
+            dlc_blacklist += dlcdict[dlc]
+    return dlc_blacklist
 
 
 
@@ -522,6 +651,14 @@ class DuelCounter:
                 "INSERT OR REPLACE INTO LEVELTABLE (GID, UID, LEVEL) VALUES (?, ?, ?)",
                 (gid, uid, level),
             )
+    def _get_level_num(self, gid, level):
+        with self._connect() as conn:
+            r = conn.execute(
+                "SELECT COUNT(UID) FROM LEVELTABLE WHERE GID=? AND LEVEL=? ", (gid, level)
+            ).fetchone()
+            return r[0] if r else 0    
+
+
 
 #皇后部分
 
@@ -724,9 +861,10 @@ def get_newgirl_list(gid):
     chara_id_list = list(_pcr_data.CHARA_NAME.keys())
     duel = DuelCounter()
     old_list = duel._get_card_list(gid)
+    dlc_blacklist = get_dlc_blacklist(gid)
     new_list = []
     for card in chara_id_list:
-        if card not in BLACKLIST_ID and card not in old_list:
+        if card not in BLACKLIST_ID and card not in old_list and card not in dlc_blacklist:
             new_list.append(card)
     return new_list
 
@@ -783,6 +921,43 @@ def concat_pic(pics, border=0):
         des.paste(pic, (0, (h + i*border)), pic)
         h += pic.size[1]        
     return des
+
+@sv.on_fullmatch(['本群贵族状态','查询本群贵族','本群贵族'])
+async def group_noble_status(bot, ev: CQEvent):
+    gid = ev.group_id
+    duel = DuelCounter()
+    newgirllist = get_newgirl_list(gid)
+    newgirlnum = len(newgirllist)
+    l1_num = duel._get_level_num(gid,1)
+    l2_num = duel._get_level_num(gid,2)
+    l3_num = duel._get_level_num(gid,3)
+    l4_num = duel._get_level_num(gid,4)
+    l5_num = duel._get_level_num(gid,5)
+    l6_num = duel._get_level_num(gid,6)
+    l7_num = duel._get_level_num(gid,7)
+    dlctext=''
+    for dlc in dlcdict.keys():
+        if gid in dlc_switch[dlc]:
+            dlctext += f'{dlc},'
+    msg=f'''
+╔                          ╗
+         本群贵族
+      
+  皇帝：{l7_num}名
+  国王：{l6_num}名
+  公爵：{l5_num}名
+  侯爵：{l4_num}名
+  伯爵：{l3_num}名
+  子爵：{l2_num}名
+  男爵：{l1_num}名
+  已开启DLC:
+  {dlctext}
+  还有{newgirlnum}名单身女友 
+╚                          ╝
+'''
+    await bot.send(ev, msg)
+
+
 
 
 
@@ -854,7 +1029,7 @@ async def add_noble(bot, ev: CQEvent):
         if len(newgirllist) == 0:
             cid = 9999
             c = chara.fromid(1059)
-            girlmsg = f'本群已经没有可以约的女友了哦，一位神秘的可可萝在你孤单时来到了你身边。{c.icon.cqcode}。'
+            girlmsg = f'本群已经没有可以约的女友了哦，一位神秘的可可萝在你孤单时来到了你身边。{c.icon.cqcode}'
         else:
             cid = random.choice(newgirllist)
             c = chara.fromid(cid)
@@ -1036,11 +1211,22 @@ async def add_girl(bot, ev: CQEvent):
 
         # 招募女友成功
         cid = random.choice(newgirllist)
-
         duel._add_card(gid, uid, cid)
         c = chara.fromid(cid)
         wintext = random.choice(Addgirlsuccess)
-        msg = f'\n{wintext}\n招募女友成功！\n您花费了{GACHA_COST}金币\n新招募的女友为：{c.name}{c.icon.cqcode}'
+        mes = c.icon.cqcode
+        PIC_PATH = os.path.join(FILE_PATH,'fullcard')
+        path = os.path.join(PIC_PATH,f'{cid}31.png')
+        if  os.path.exists(path):
+            img = Image.open(path)
+            bio = BytesIO()
+            img.save(bio, format='PNG')
+            base64_str = 'base64://' + base64.b64encode(bio.getvalue()).decode()
+            mes = f"[CQ:image,file={base64_str}]"
+
+        
+        msg = f'\n{wintext}\n招募女友成功！\n您花费了{GACHA_COST}金币\n新招募的女友为：{c.name}{mes}'
+
         await bot.send(ev, msg, at_sender=True)
 
 
@@ -1712,24 +1898,5 @@ async def marry_queen(bot, ev: CQEvent):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
 
 
