@@ -148,8 +148,16 @@ async def duel_help(bot, ev: CQEvent):
 
 blhxlist = range(6000,6506)
 yozilist = range(1523,1544)
-genshinlist = range(7001,7018)
+genshinlist = range(7001,7020)
 bangdreamlist = range(1601,1636)
+millist = range(3001,3055)
+collelist = range(4001,4639)
+koilist = range(7100,7104)
+sakulist = range(7200,7204)
+cloverlist = range(7300,7307)
+majsoullist = range(7400,7476)
+noranekolist = range(7500,7510)
+fgolist = range(8001,8301)
 
 
 #这里记录dlc名字和对应列表
@@ -157,7 +165,15 @@ dlcdict = {
         'blhx':blhxlist,
         'yozi':yozilist,
         'genshin':genshinlist,
-        'bangdream':bangdreamlist
+        'bangdream':bangdreamlist,
+        'million':millist,
+        'kancolle':collelist,
+        'koikake':koilist,
+        'sakukoi':sakulist,
+        'cloverdays':cloverlist,
+        'majsoul':majsoullist,
+        'noraneko':noranekolist,
+        'fgo':fgolist
         }
 
 
@@ -166,7 +182,16 @@ dlcintro = {
         'blhx':'碧蓝航线手游角色包。',
         'yozi':'柚子社部分角色包。',
         'genshin':'原神角色包。',
-        'bangdream':'邦邦手游角色包。'
+        'bangdream':'邦邦手游角色包。',
+        'million':'偶像大师百万剧场角色包',
+        'kancolle':'舰队collection角色包',
+        'koikake':'恋×シンアイ彼女角色包',
+        'sakukoi':'桜ひとひら恋もよう角色包',
+        'cloverdays':'Clover Days角色包',
+        'majsoul':'雀魂角色包',
+        'noraneko':'ノラと皇女と野良猫ハート角色包' ,
+        'fgo':'FGO手游角色包'        
+        
         }
 
 
@@ -236,7 +261,7 @@ async def intro_dlc(bot, ev: CQEvent):
         intro = dlcintro[dlc]
         msg+=f'介绍:{intro}\n'
         num = len(dlcdict[dlc])
-        msg+=f'共有{num}名角色\n\n'
+        msg+=f'共有{num}名角色\n'
         i+=1
     msg+= '发送 加载\卸载dlc+dlc名\n可加载\卸载dlc\n卸载的dlc不会被抽到，但是角色仍留在玩家仓库，可以被抢走。'    
         
@@ -270,6 +295,16 @@ def get_dlc_blacklist(gid):
         if gid not in dlc_switch[dlc]:
             dlc_blacklist += dlcdict[dlc]
     return dlc_blacklist
+
+#检查有没有没加到json里的dlc
+def check_dlc():
+    for dlc in dlcdict.keys():
+        if dlc not in dlc_switch.keys():
+            dlc_switch[dlc]=[]
+    save_dlc_switch()
+            
+check_dlc()
+
 
 
 
@@ -1330,7 +1365,7 @@ async def nobleduel(bot, ev: CQEvent):
         await bot.send(ev, '今天的决斗次数已经超过上限了哦，明天再来吧。', at_sender=True)
         duel_judger.turn_off(ev.group_id)
         return
-    daily_duel_limiter.increase(guid)
+    
 
 
 
@@ -1356,6 +1391,7 @@ async def nobleduel(bot, ev: CQEvent):
         duel_judger.turn_off(gid)
         await bot.send(ev, msg, at_sender=True)
         return
+    daily_duel_limiter.increase(guid)
     duel = DuelCounter()
     level1 = duel._get_level(gid, id1)
     noblename1 = get_noblename(level1)
@@ -1898,5 +1934,15 @@ async def marry_queen(bot, ev: CQEvent):
 
 
 
+
+
+
+
+
+
+
+
+
+    
 
 
