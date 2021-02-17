@@ -1802,6 +1802,7 @@ async def nobleduel(bot, ev: CQEvent):
         #判断好感是否足够，足够则扣掉好感
         favor = duel._get_favor(gid,loser,selected_girl)    
         if favor>=50:
+            c = chara.fromid(selected_girl)
             duel._reduce_favor(gid,loser,selected_girl,50)
             msg = f'[CQ:at,qq={loser}]您输掉了贵族决斗，您与{c.name}的好感下降了50点。\n{c.icon.cqcode}'
             await bot.send(ev, msg)      
@@ -2419,13 +2420,19 @@ async def my_gift(bot, ev: CQEvent):
     uid = ev.user_id
     duel = DuelCounter()
     msg = f'\n您的礼物仓库如下:'
+    giftmsg =''
     for gift in GIFT_DICT.keys():
         gfid = GIFT_DICT[gift]
         num = duel._get_gift_num(gid,uid,gfid)
+        if num!=0:
         #补空格方便对齐
-        length = len(gift)
-        msg_part = '    '*(4-length)
-        msg+=f'\n{gift}{msg_part}: {num}件'
+            length = len(gift)
+            msg_part = '    '*(4-length)
+            giftmsg+=f'\n{gift}{msg_part}: {num}件'
+    if giftmsg == '':
+        await bot.finish(ev, '您现在没有礼物哦，快去发送 买礼物 购买吧。', at_sender=True)        
+    msg+=giftmsg
+            
     await bot.send(ev, msg, at_sender=True)         
 
 @sv.on_rex(f'^用(.*)与(.*)交换(.*)$')
@@ -2465,10 +2472,10 @@ async def change_gift(bot, ev: CQEvent):
   
     if duel._get_gift_num(gid,id1,gfid1)==0:
         gift_change.turn_off_giftchange(ev.group_id)    
-        await bot.finish(ev, f'[CQ:at,qq={id1}]\n您的{gift1}的库存不足哦。', at_sender=True)    
+        await bot.finish(ev, f'[CQ:at,qq={id1}]\n您的{gift1}的库存不足哦。')    
     if duel._get_gift_num(gid,id2,gfid2)==0:
         gift_change.turn_off_giftchange(ev.group_id)    
-        await bot.finish(ev, f'[CQ:at,qq={id2}]\n您的{gift2}的库存不足哦。', at_sender=True)  
+        await bot.finish(ev, f'[CQ:at,qq={id2}]\n您的{gift2}的库存不足哦。')  
     level2 = duel._get_level(gid, id2)
     noblename = get_noblename(level2)
     gift_change.turn_on_waitchange(gid)
@@ -2562,6 +2569,17 @@ async def buy_information(bot, ev: CQEvent):
     c = chara.fromid(cid)       
     msg = f'\n花费了500金币，您买到了以下情报：\n{c.name}最喜欢的礼物是:\n{favorite}\n喜欢的礼物是:\n{like}一般喜欢的礼物是:\n{normal}不喜欢的礼物是:\n{dislike}{c.icon.cqcode}'
     await bot.send(ev, msg, at_sender=True)  
+
+
+@sv.on_fullmatch('重置礼物交换')
+async def init_change(bot, ev: CQEvent):
+    if not priv.check_priv(ev, priv.ADMIN):
+        await bot.finish(ev, '只有群管理才能使用重置礼物交换哦。', at_sender=True)
+    gift_change.turn_off_giftchange(ev.group_id)
+    msg = '已重置本群礼物交换状态！'
+    await bot.send(ev, msg, at_sender=True)
+
+
 
 @sv.on_fullmatch(['好感系统帮助','礼物系统帮助','好感帮助','礼物帮助'])
 async def gift_help(bot, ev: CQEvent):
