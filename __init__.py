@@ -2445,8 +2445,6 @@ async def change_gift(bot, ev: CQEvent):
     id1 = ev.user_id
     match = ev['match']
     try:
-        id2 = int(match.group(2))
-    except ValueError:
         id2 = int(ev.message[1].data['qq'])
     except:
         gift_change.turn_off_giftchange(ev.group_id)
