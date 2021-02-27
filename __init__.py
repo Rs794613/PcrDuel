@@ -11,6 +11,7 @@ from hoshino.modules.priconne.pcr_duel import _pcr_duel_data as _pcr_data
 from hoshino.modules.priconne.pcr_duel import duel_chara as chara
 from hoshino.typing import CQEvent
 from hoshino.util import DailyNumberLimiter
+from nonebot import scheduler
 import copy
 import json
 
@@ -994,7 +995,20 @@ class DuelJudger:
         self.duelid = {}
         self.isaccept = {}
         self.hasfired_on = {}
+        self.check = {}
+        self.enermy = {}
 
+    def set_check(self, gid, func):
+        self.check[gid] = func
+
+    def remove_check(self, gid):
+        self.check[gid].remove()
+
+    def set_enermy(self, gid, id2):
+        self.enermy[gid] = id2
+
+    def get_enermy(self, gid):
+        return self.enermy[gid]
 
     def set_support(self, gid):
         self.support[gid] = {}
@@ -1409,7 +1423,7 @@ async def inquire_noble(bot, ev: CQEvent):
   您的金币为{score}
   您共可拥有{girlnum}名女友
   您目前没有女友。
-  发送[贵族约会]
+  发送[贵族舞会]
   可以招募女友哦。
   
 ╚                          ╝
@@ -1626,7 +1640,11 @@ async def add_girl(bot, ev: CQEvent):
 @sv.on_prefix('贵族决斗')
 async def nobleduel(bot, ev: CQEvent):
     if ev.message[0].type == 'at':
-        id2 = int(ev.message[0].data['qq'])
+        if ev.message[0].data['qq'] == 'all':
+            await bot.send(ev, "你确定要以全世界为敌吗？")
+            return
+        else:
+            id2 = int(ev.message[0].data['qq'])
     else:
         await bot.finish(ev, '参数格式错误, 请重试')
     if duel_judger.get_on_off_status(ev.group_id):
@@ -1689,13 +1707,34 @@ async def nobleduel(bot, ev: CQEvent):
     msg = f'[CQ:at,qq={id2}]对方向您发起了优雅的贵族决斗，请在{WAIT_TIME}秒内[接受/拒绝]。'
 
     await bot.send(ev, msg)
-    await asyncio.sleep(WAIT_TIME)
+    duel_judger.set_enermy(gid, id1)
+    duel_judger.set_check(gid, scheduler.add_job(dueldeny, 'date', args=(bot, ev,), next_run_time=datetime.now() + timedelta(seconds = WAIT_TIME)))
+    # await asyncio.sleep(WAIT_TIME)
+    # duel_judger.turn_off_accept(gid)
+    # if duel_judger.get_isaccept(gid) is False:
+    #     msg = '决斗被拒绝。'
+    #     duel_judger.turn_off(gid)
+    #     await bot.send(ev, msg, at_sender=True)
+    #     return
+
+
+async def dueldeny(bot, ev: CQEvent):
+    gid = ev.group_id
     duel_judger.turn_off_accept(gid)
     if duel_judger.get_isaccept(gid) is False:
         msg = '决斗被拒绝。'
         duel_judger.turn_off(gid)
         await bot.send(ev, msg, at_sender=True)
         return
+
+async def duelaccepted(bot, ev: CQEvent):
+    gid = ev.group_id
+    duel_judger.turn_on(gid)
+    id2 = ev.user_id
+    id1 = duel_judger.get_enermy(gid)
+    duel = DuelCounter()
+    is_overtime = 0
+    guid = gid ,id1
     daily_duel_limiter.increase(guid)
     duel = DuelCounter()
     level1 = duel._get_level(gid, id1)
@@ -1892,10 +1931,13 @@ async def duelaccept(bot, ev: CQEvent):
     if duel_judger.get_on_off_accept_status(gid):
         if ev.user_id == duel_judger.get_duelid(gid)[1]:
             gid = ev.group_id
-            msg = '贵族决斗接受成功，请耐心等待决斗开始。'
+            msg = '贵族决斗接受成功。'
             await bot.send(ev, msg, at_sender=True)
             duel_judger.turn_off_accept(gid)
             duel_judger.on_isaccept(gid)
+            duel_judger.remove_check(gid)
+            await asyncio.sleep(1)
+            await duelaccepted(bot, ev)
         else:
             print('不是被决斗者')
     else:
@@ -1912,6 +1954,8 @@ async def duelrefuse(bot, ev: CQEvent):
             await bot.send(ev, msg, at_sender=True)
             duel_judger.turn_off_accept(gid)
             duel_judger.off_isaccept(gid)
+            duel_judger.remove_check(gid)
+            await dueldeny(bot, ev)
 
 
 @sv.on_fullmatch('开枪')
