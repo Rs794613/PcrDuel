@@ -295,8 +295,6 @@ dlcintro = {
         'majsoul':'雀魂角色包',
         'noraneko':'ノラと皇女と野良猫ハート角色包' ,
         'fgo':'FGO手游角色包',
-        'touhou':'东方project角色包',
-        'moe':'部分日漫角色包',
         'mrfz':'明日方舟手游角色包'        
         }
 
