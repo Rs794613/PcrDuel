@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 from io import BytesIO
 from PIL import Image
 from hoshino import Service, priv
-from hoshino.modules.priconne import _pcr_data
-from hoshino.modules.priconne import chara
+from hoshino.modules.priconne.pcr_duel import _pcr_duel_data as _pcr_data
+from hoshino.modules.priconne.pcr_duel import duel_chara as chara
 from hoshino.typing import CQEvent
 from hoshino.util import DailyNumberLimiter
 import copy
@@ -229,6 +229,7 @@ async def duel_help(bot, ev: CQEvent):
    12.dlc帮助(增加dlc角色)
    13.购买上限(国王以上，增加女友上限)
    14.好感帮助(好感系统指令)
+   15.查名字+女友序号
    
    
   一个女友只属于一位群友
@@ -259,7 +260,7 @@ cloverlist = range(7300,7307)
 majsoullist = range(7400,7476)
 noranekolist = range(7500,7510)
 fgolist = range(8001,8301)
-
+mrfzlist = range(5001,5180)
 
 #这里记录dlc名字和对应列表
 dlcdict = {
@@ -274,7 +275,9 @@ dlcdict = {
         'cloverdays':cloverlist,
         'majsoul':majsoullist,
         'noraneko':noranekolist,
-        'fgo':fgolist
+        'fgo':fgolist,
+        'mrfz':mrfzlist
+        
         }
 
 
@@ -291,8 +294,10 @@ dlcintro = {
         'cloverdays':'Clover Days角色包',
         'majsoul':'雀魂角色包',
         'noraneko':'ノラと皇女と野良猫ハート角色包' ,
-        'fgo':'FGO手游角色包'        
-        
+        'fgo':'FGO手游角色包',
+        'touhou':'东方project角色包',
+        'moe':'部分日漫角色包',
+        'mrfz':'明日方舟手游角色包'        
         }
 
 
@@ -735,7 +740,7 @@ class DuelCounter:
     def _get_cards(self, gid, uid):
         with self._connect() as conn:
             r = conn.execute(
-                "SELECT CID, NUM FROM UIDTABLE WHERE GID=? AND UID=? AND NUM>0", (gid, uid)
+                f"SELECT CID, NUM FROM UIDTABLE WHERE GID=? AND UID=? AND NUM>0 ", (gid, uid)
             ).fetchall()
         return [c[0] for c in r] if r else {}
 
@@ -2041,16 +2046,28 @@ async def search_girl(bot, ev: CQEvent):
     duel = DuelCounter()
     owner = duel._get_card_owner(gid, cid)
     c = chara.fromid(cid)
+    mes = c.icon.cqcode
+    PIC_PATH = os.path.join(FILE_PATH,'fullcard')
+    path = os.path.join(PIC_PATH,f'{cid}31.png')
+    if  os.path.exists(path):
+        img = Image.open(path)
+        bio = BytesIO()
+        img.save(bio, format='PNG')
+        base64_str = 'base64://' + base64.b64encode(bio.getvalue()).decode()
+        mes = f"[CQ:image,file={base64_str}]"
+    
+    
+    
     #判断是否是皇后。
     if duel._get_queen_owner(gid,cid) !=0 :
         owner = duel._get_queen_owner(gid,cid)
-        await bot.finish(ev, f'\n{c.name}现在是\n[CQ:at,qq={owner}]的皇后哦。{c.icon.cqcode}', at_sender=True)
+        await bot.finish(ev, f'\n{c.name}现在是\n[CQ:at,qq={owner}]的皇后哦。{mes}', at_sender=True)
 
     if owner == 0:
-        await bot.send(ev, f'{c.name}现在还是单身哦，快去约到她吧。', at_sender=True)
+        await bot.send(ev, f'{c.name}现在还是单身哦，快去约到她吧。{mes}', at_sender=True)
         return
     else:
-        msg = f'{c.name}现在正在\n[CQ:at,qq={owner}]的身边哦。{c.icon.cqcode}'
+        msg = f'{c.name}现在正在\n[CQ:at,qq={owner}]的身边哦。{mes}'
         await bot.send(ev, msg)
 
 
@@ -2289,7 +2306,19 @@ async def girl_story(bot, ev: CQEvent):
     favor= duel._get_favor(gid,uid,cid)
     relationship,text = get_relationship(favor)
     c = chara.fromid(cid)    
-    msg = f'\n{c.name}对你的好感是{favor}\n你们的关系是{relationship}\n“{text}”\n{c.icon.cqcode}'
+    mes = c.icon.cqcode
+    PIC_PATH = os.path.join(FILE_PATH,'fullcard')
+    path = os.path.join(PIC_PATH,f'{cid}31.png')
+    if  os.path.exists(path):
+        img = Image.open(path)
+        bio = BytesIO()
+        img.save(bio, format='PNG')
+        base64_str = 'base64://' + base64.b64encode(bio.getvalue()).decode()
+        mes = f"[CQ:image,file={base64_str}]"
+    
+    
+    
+    msg = f'\n{c.name}对你的好感是{favor}\n你们的关系是{relationship}\n“{text}”\n{mes}'
     await bot.send(ev, msg, at_sender=True)
 
 @sv.on_prefix(['每日约会','女友约会', '贵族约会'])
@@ -2669,13 +2698,32 @@ async def add_warehouse(bot, ev: CQEvent):
         await bot.send(ev, msg, at_sender=True)
 
 
-
-
-
-
-
-
-
+@sv.on_prefix(['查姓名', '女友姓名','女友名字','查名字','查昵称'])
+async def get_girlname(bot, ev: CQEvent):
+    args = ev.message.extract_plain_text().split()
+    gid = ev.group_id
+    uid = ev.user_id
+    duel = DuelCounter()
+    if not args:
+        await bot.finish(ev, '请输入查名字+女友序号(序号即查询贵族中女友排在第几位)。', at_sender=True)
+    num = args[0]
+    if not num.isdigit():
+        await bot.finish(ev, '请输入查名字+女友序号(序号即查询贵族中女友排在第几位)。', at_sender=True)
+    num_int = int(num)
+    cidlist = duel._get_cards(gid, uid)
+    girlnum = len(cidlist)
+    
+    if num_int>girlnum:
+        await bot.finish(ev, f'你所输入的女友序号{num_int}大于您的女友数{girlnum}名', at_sender=True)
+    cid = cidlist[num_int-1]    
+    namelist = _pcr_data.CHARA_NAME[cid]
+    namemsg = ''
+    for name in namelist:
+        namemsg+=f'{name},'
+    namemsg = namemsg[:-1]
+    msg = f'\n您的第{num_int}名女友的昵称为:\n\n{namemsg}'
+    
+    await bot.send(ev, msg, at_sender=True)
 
 
 
