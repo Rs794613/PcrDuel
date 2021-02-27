@@ -11,6 +11,7 @@ from hoshino.modules.priconne.pcr_duel import _pcr_duel_data as _pcr_data
 from hoshino.modules.priconne.pcr_duel import duel_chara as chara
 from hoshino.typing import CQEvent
 from hoshino.util import DailyNumberLimiter
+from nonebot import scheduler
 import copy
 import json
 
